@@ -48,8 +48,8 @@ def home():
 @app.post("/example")
 async def product_search_api(req : Example):  
     try: 
-        bucket_name    =  req.bucket_name
-        prefix         =  req.prefix 
+        bucket_name   =  req.bucket_name
+        prefix        =  req.prefix 
         return{ 
             'bucket_name': bucket_name,  
             'prefix':  prefix  
