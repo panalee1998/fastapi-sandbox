@@ -13,9 +13,8 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
 import numpy as np 
-  
-from lib.productSearch import productSearch
-from lib.imageSearch2 import imageSearch
+   
+from lib.imageSearch import imageSearch
 # from 
 # from productSearch import productSearch 
 
