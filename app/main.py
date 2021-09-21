@@ -14,7 +14,7 @@ from passlib.context import CryptContext
 from pydantic import BaseModel
 import numpy as np 
    
-from lib.imageSearch import imageSearch
+# from lib.imageSearch import imageSearch
 # from 
 # from productSearch import productSearch 
 
@@ -50,12 +50,10 @@ async def product_search_api(req : Example):
     try: 
         bucket_name    =  req.bucket_name
         prefix         =  req.prefix 
-        PS = productSearch(bucket_name = bucket_name ,prefix = prefix)  
-        response   = PS.main(mainUrl = req.productImage)   
-        return {
-                'status_code': 200, 
-                'result': response
-            }  
+        return{ 
+            'bucket_name': bucket_name,  
+            'prefix':  prefix  
+        }  
     except ValueError as e:
         return{ 
             'error_code':  str(e),  
