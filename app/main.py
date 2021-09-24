@@ -66,7 +66,20 @@ async def urltob64(reqest : Urltob64):
 async def product_search_api(reqest : Example):  
     try: 
         foldername          =  reqest.foldername
-        productImage        =  reqest.productImage 
+        productImage        =  reqest.productImage
+        if  foldername == "bls":
+            img_path = url
+            Segments = img_path.rpartition('_')
+            keyword = Segments[-3]
+            foldername= f'bls/{keyword}/{img_path}'
+
+
+        else :
+            img_path = url
+            Segments = img_path.rpartition('.')
+            keyword = Segments[-3]
+            foldername = f'web/{keyword}/{img_path}'
+        
         return{ 
             'foldername': foldername,  
             'productImage':  productImage  
