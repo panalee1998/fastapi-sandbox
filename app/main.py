@@ -16,7 +16,7 @@ import numpy as np
 import base64
 import requests
 from google.cloud import Storage
-# from lib.storage import Storage
+from lib.storage import Storage
 from lib.base64_handler import decode_b64_to_file
 
    
