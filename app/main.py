@@ -15,6 +15,9 @@ from pydantic import BaseModel
 import numpy as np  
 import base64
 import requests
+from google.cloud import storage
+from lib.storage import Storage
+from lib.base64_handler import decode_b64_to_file
 
    
 # from lib.imageSearch import imageSearch
@@ -25,9 +28,31 @@ class Urltob64(BaseModel):
     url : str 
 
 class Example(BaseModel): 
-    foldername : str 
-    productImage : str = Body(...,example="https://... ") 
+    base64: str
+    extension: str 
+
+class uploadFiles(BaseModel):
+    base64: str
+    extension: str
+
+class uploadFiles(BaseModel):
+    base64: str
+    extension: str
  
+class User(BaseModel):
+    username: str
+    email: Optional[str] = None
+    full_name: Optional[str] = None
+    disabled: Optional[bool] = None
+
+
+class UserInDB(User):
+    hashed_password: str
+
+class TokenData(BaseModel):
+    username: Optional[str] = None
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 SECRET_KEY = "21bb28cfdac986bd041470db0ef8cbe32ecf18cfcea96163c6fc37f5ec6e4f89"
 ALGORITHM = "HS256"
@@ -44,6 +69,35 @@ users_db = {
 }
 
 app = FastAPI() 
+
+async def get_current_user(token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(
+        status_code=401,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+        token_data = TokenData(username=username)
+    except JWTError:
+        raise credentials_exception
+    user = get_user(users_db, username=token_data.username)
+    if user is None:
+        raise credentials_exception
+    return user
+
+def get_user(db, username: str):
+    if username in db:
+        user_dict = db[username]
+        return UserInDB(**user_dict)
+
+async def get_current_active_user(current_user: User = Depends(get_current_user)):
+    if current_user.disabled:
+        raise HTTPException(status_code=400, detail="Inactive user")
+    return current_user
 
 @app.get("/")
 def home(): 
@@ -62,32 +116,19 @@ async def urltob64(reqest : Urltob64):
             'base64': res,   
         }  
 
-@app.post("/example")
-async def product_search_api(reqest : Example):  
-    try: 
-        foldername          =  reqest.foldername
-        productImage        =  reqest.productImage
-        if  foldername == "bls":
-            img_path = url
-            Segments = img_path.rpartition('_')
-            keyword = Segments[-3]
-            foldername= f'bls/{keyword}/{img_path}'
-
-
-        else :
-            img_path = url
-            Segments = img_path.rpartition('.')
-            keyword = Segments[-3]
-            foldername = f'web/{keyword}/{img_path}'
-        
-        return{ 
-            'foldername': foldername,  
-            'productImage':  productImage  
-        }  
+@app.post("/Example")
+async def upload(data: uploadFiles,current_user: User = Depends(get_current_active_user)): 
+    base64   = data.base64 
+    extension   = data.extension 
+    try:  
+        file_name = decode_b64_to_file(b64=base64, extension=extension)  
+        ST = Storage(bucket_name = 'chaladohn_image_upload')
+        result = ST.upload_to_bucket(blob_name=file_name)
+        return result
     except ValueError as e:
-        return{ 
-            'error_code':  str(e),  
-        } 
+        return{
+            'error_code':  str(e),
+        }
  
 def get_as_base64(url): 
     return base64.b64encode(requests.get(url).content)
