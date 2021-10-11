@@ -12,17 +12,32 @@ from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
-import numpy as np 
+import numpy as np  
+import base64
+import requests
+from lib.base64_handler import decode_b64_to_file
+from lib.storage import Storage
+
+from docxtpl import DocxTemplate
+from docx2pdf import convert
+
    
 # from lib.imageSearch import imageSearch
 # from 
 # from productSearch import productSearch 
 
-class Example(BaseModel):
-    bucket_name : str
-    prefix : str 
+class Urltob64(BaseModel): 
+    url : str 
+
+class Example(BaseModel): 
+    foldername : str 
     productImage : str = Body(...,example="https://... ") 
- 
+
+class uploadFiles(BaseModel):
+    Number : str
+    Department : str
+    Date : str
+    Name : str
 
 SECRET_KEY = "21bb28cfdac986bd041470db0ef8cbe32ecf18cfcea96163c6fc37f5ec6e4f89"
 ALGORITHM = "HS256"
@@ -42,31 +57,85 @@ app = FastAPI()
 
 @app.get("/")
 def home(): 
-    return {"message":"Hello home.com aa"} 
+    return {"message":" GET HOME "} 
 
+@app.get("/items/{item_id}")
+# def read_item(item_id: int, q: Optional[str] = None):
+def read_item_test(item_id: int, q: Optional[str] = None):
+    return {"item_id": item_id, "q": q}
  
-@app.post("/example")
-async def product_search_api(req : Example):  
-    try: 
-        bucket_name   =  req.bucket_name
-        prefix        =  req.prefix 
-        return{ 
-            'bucket_name': bucket_name,  
-            'prefix':  prefix  
+@app.post("/url-to-b64")
+async def urltob64(reqest : Urltob64):  
+    res = get_as_base64(url=reqest.url)
+    return{ 
+            'base64': res,   
         }  
-    except ValueError as e:
+
+@app.post("/example")
+async def product_search_api(reqest : Example):  
+    try: 
+        foldername          =  reqest.foldername
+        productImage        =  reqest.productImage 
+        return{ 
+            'foldername': foldername,  
+            'productImage':  productImage  
+        }  
+    except ValueError as e:                                
         return{ 
             'error_code':  str(e),  
         } 
- 
+def DocxToStorage(FileDocxFromTemp,reqest):
+    NameFile = FileDocxFromTemp
+    doc = DocxTemplate(FileDocxFromTemp)
+    context = { "Number" : reqest.Number , 
+                "Department" : reqest.Department , 
+                "Date" : reqest.Date , 
+                "Name" : reqest.Name }
+    doc.render(context)
+    Segments = NameFile.rpartition('.')
+    keyword = Segments[-3]
+    file_name = f"{keyword}.docx"
+    doc.save(file_name)                                                                                                                                                                                                                                                                                                                    
+    return file_name 
+
+def DocxToPdf(FileDocx,reqest):
+    inputFile = FileDocx
+    Segments = inputFile.rpartition('.')
+    keyword = Segments[-3]
+    outputFile = f"{keyword}.pdf"
+    pdfFile = convert(inputFile, outputFile)
+    with open(f'{reqest.filename}', "rb") as pdf_file:
+        encoded_string = base64.b64encode(pdf_file.read())
+    return encoded_string
+
+@app.post("/pdf")
+async def pdftob64( reqest : uploadFiles):
+    NameFile = "app/template_N8.docx"
+    FileDocx =  DocxToStorage(FileDocxFromTemp = NameFile,reqest = reqest)                                                                                                                                                                                                                                                                                                                   
+    pdf = DocxToPdf(FileDocx=FileDocx,reqest=reqest)
+     
+    base64   = pdf 
+    extension   = "pdf"
+    folder   = "N_8" 
+    try:  
+        file_name = decode_b64_to_file(b64=base64, extension=extension)  
+        ST = Storage(bucket_name = 'chaladohn_image_upload')
+        result = ST.upload_to_bucket(blob_name=file_name,folder=folder)
+        return result
+    except ValueError as e:
+        return{
+            'error_code':  str(e),
+        }
+
+def get_as_base64(url): 
+    return base64.b64encode(requests.get(url).content)
+
 def test():
     print("test")
  
 
 if __name__ == '__main__':
-    test()
+    endpoint = "https://i.stack.imgur.com/N4TSy.jpg"
+    res = get_as_base64(url=endpoint)
 
-
-
-
- 
+    print(res)

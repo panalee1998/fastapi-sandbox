@@ -15,4 +15,6 @@ keras==2.4.0
 scikit-image==0.18.2 
 scikit-learn==0.24.2 
 matplotlib==3.4.2
+docxtpl==0.8.0
+docx2pdf==0.1.7
 
